@@ -1,0 +1,13 @@
+query GetMessages($episode_id: uuid!) {
+  story_section(where: {chapter_id: {_eq: $episode_id}}, order_by: {number: asc}) {
+    prompts(order_by: {number: asc}) {
+      id
+      logic
+      attachment
+      parent
+      text
+      type
+      sender_id
+    }
+  }
+}

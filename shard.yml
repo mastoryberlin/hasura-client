@@ -1,0 +1,9 @@
+name: hasura-client
+version: 0.1.0
+
+authors:
+  - feritarou <schwarz.f@web.de>
+
+crystal: 1.1.1
+
+license: MIT

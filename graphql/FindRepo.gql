@@ -1,0 +1,5 @@
+query FindRepo($name: String!) {
+  repository(owner: "mastoryberlin", name: $name) {
+    id
+  }
+}

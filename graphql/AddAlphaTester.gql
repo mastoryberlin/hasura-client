@@ -1,0 +1,5 @@
+mutation AddAlphaTester($first_name: String = "", $last_name: String = "", $class_id: uuid = "") {
+  insert_student_one(object: {class_id: $class_id, email: "", last_name: $last_name, first_name: $first_name}) {
+    token
+  }
+}

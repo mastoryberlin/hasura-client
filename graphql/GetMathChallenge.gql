@@ -1,0 +1,12 @@
+query GetMathChallenge($episode_id: uuid!) {
+  challenge(where: {chapter_id: {_eq: $episode_id}}) {
+    geogebra_worksheets(order_by: {number: asc}) {
+      ggb
+      id
+      inputs
+      outputs
+      long_description
+      short_description
+    }
+  }
+}
