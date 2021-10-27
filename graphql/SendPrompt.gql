@@ -1,0 +1,6 @@
+mutation SendPrompt($attachment: String = "", $channel_id: uuid!, $character_id: String!, $text: String = "", $type: message_type_enum = text, $prompt_id: uuid = null) {
+  insert_message_one(object: {attachment: $attachment, channel_id: $channel_id, character_id: $character_id, type: $type, text: $text, prompt_id: $prompt_id}) {
+    id
+    created_at
+  }
+}

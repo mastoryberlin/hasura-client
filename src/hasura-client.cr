@@ -30,11 +30,15 @@ module Hasura
   macro query(name, **variables)
     {% filename = __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/?$/, "/graphql") + "/" + name.id.stringify + ".gql" %}
     {% raise "GraphQL file '#{name.id}.gql' not found in graphql folder (#{filename.id})" unless `[ -e "#{filename}" ]; echo -n $?` == "0" %}
+
     Hasura.post_request({
       query: {{ read_file filename }},
       operationName: {{ name.id.stringify }},
       variables: { {{ **variables }} } {% if variables.empty? %}of String => String{% end %}
-    }.to_json)
+    }.to_json) do |raw|
+      Hasura::Schema::{{ name.id }}Response.from_json raw.body_io
+    end
+    .data || raise "Hasura responded with an error message" #TODO
   end
 
   # --------------------------------------------------------------------------
@@ -47,8 +51,13 @@ module Hasura
   # Helper methods
   # ==========================================================================
 
-  def post_request(req)
-    puts req.to_s
+  def post_request(req, &block)
+    client.post endpoint, HTTP::Headers{
+      "content-type" => "application/json",
+      "x-hasura-admin-secret" => secret
+    }, req do |raw|
+      yield raw
+    end
   end
 
   # --------------------------------------------------------------------------

@@ -41,10 +41,8 @@ graphql_dir.each_child do |filename|
     user_defined_gql_operation
     .each_char do |c|
       case c
-      when '('
-        paren += 1
-      when ')'
-        paren -= 1
+      when '(' then paren += 1
+      when ')' then paren -= 1
       when '{'
         if paren.zero?
           # entering new nesting level ->determine the type of the block, get its fields from the schema, store them in full_type,
@@ -68,14 +66,13 @@ graphql_dir.each_child do |filename|
               when NullableType                 then field_type[1].name
               when NullableArrayOfNullableType  then field_type[2].name
               end.not_nil!
-              #TODO: Deal with modifiers
               full_type = GqlType.new type_name
               local_type = GqlType.new type_name
               type_name
             end
 
           # 2) GET ITS FIELDS FROM THE SCHEMA
-          puts "\nLooking up #{fields_root_name} in GQL schema / __schema / types"
+          # puts "\nLooking up #{fields_root_name} in GQL schema / __schema / types"
           fields_root = schema_types.find &.as_h["name"].as_s.==(fields_root_name)
           fields_in_schema = fields_root.not_nil!["fields"]
           fields_in_schema.as_a.each do |f|
@@ -103,7 +100,7 @@ graphql_dir.each_child do |filename|
               else raise "Encountered an unknown sequence of type modifiers in GraphQL schema for field '#{field_name}' of '#{fields_root_name}': #{mod}"
               end
             when "SCALAR"
-              case name.downcase
+              base = case name.downcase
               when "boolean"          then "Bool"
               when "float"            then "Float64"
               when "smallint", "int"  then "Int32"
@@ -112,19 +109,15 @@ graphql_dir.each_child do |filename|
               when "jsonb"            then "JSON::Any"
               else name + " (NOT TRANSLATED INTO CRYSTAL TYPE!)"
               end
+              base += "?" unless modifiers.includes? "NON_NULL"
+              base
             when "ENUM"
               "String" #TODO: Add enum type safety at a later point
             else raise "Unexpected kind of type for field '#{field_name}' of '#{fields_root_name}': #{kind}"
             end
           end
 
-          puts "-> allowed fields are: #{full_type.fields.map{|k,v| "#{k} (#{
-            case v
-            when Scalar then v
-            when NullableType then v[1].to_s + (v[0] ? "?" : "")
-            when NullableArrayOfNullableType then "Array(" + v[2].to_s + (v[1] ? "?" : "") + ")" + (v[0] ? "?" : "")
-            end
-          })"}.join(", ")}"
+          # puts "-> allowed fields are: #{full_type.fields.map{|k,v| "#{k} (#{crystalize v})"}.join(", ")}"
           nest << { full_type, local_type, subfield }
           brace += 1
           field = "" # reset
@@ -132,13 +125,13 @@ graphql_dir.each_child do |filename|
       when '}'
         if paren.zero?
           brace -= 1
-          puts "======> Encountered } -> adding type #{local_type} to response_types"
+          # puts "======> Encountered } -> adding type #{local_type} to response_types"
           if brace.zero?
             response_types << local_type
           else
             inner_full_type, inner_local_type, inner_subfield = nest.pop
             full_type, local_type, subfield = nest.last
-            puts "        Popping nest - new full_type=#{full_type}, local_type=#{local_type}, subfield=#{subfield}"
+            # puts "        Popping nest - new full_type=#{full_type}, local_type=#{local_type}, subfield=#{subfield}"
             ref = full_type.fields[inner_subfield]
             local_type.fields[inner_subfield] = case ref
             in Scalar                       then ref
@@ -150,15 +143,9 @@ graphql_dir.each_child do |filename|
       when '\n'
         field_name = field.strip
         if paren.zero? && !field_name.blank?
-          v = full_type.fields[field_name]
-          puts "-----> Adding field #{field_name} (#{
-            case v
-            when Scalar then v
-            when NullableType then v[1].to_s + (v[0] ? "?" : "")
-            when NullableArrayOfNullableType then "Array(" + v[2].to_s + (v[1] ? "?" : "") + ")" + (v[0] ? "?" : "")
-            end
-          }) to #{local_type}"
-          local_type.fields[field_name] = v
+          field_type = full_type.fields[field_name]
+          # puts "-----> Adding field #{field_name} (#{crystalize field_type}) to #{local_type}"
+          local_type.fields[field_name] = field_type
           field = "" # reset
         end
       else
@@ -168,24 +155,28 @@ graphql_dir.each_child do |filename|
   end
 end
 
-puts "module Hasura::Schema"
+STDOUT << "module Hasura::Schema" << '\n'
 response_types.each do |gql_type|
-  puts recursive_type_code(gql_type, 1)
+  STDOUT << recursive_type_code(gql_type, 1) << '\n'
+  lines = [] of String
+  lines << "  class #{crystalize gql_type}Response"
+  lines << "    include JSON::Serializable"
+  lines << "    getter data : #{crystalize gql_type}?"
+  lines << "  end\n"
+  lines.each{|l| STDOUT << l << '\n'}
 end
-puts "end"
+STDOUT.puts "end"
+
+# --------------------------------------------------------------------------
 
 def recursive_type_code(gql_type : GqlType, nesting_level = 0)
   String.build do |s|
     lines = [] of String
-    lines << "class #{gql_type.name.camelcase}"
+    lines << "class #{crystalize gql_type}"
     lines << "  include JSON::Serializable"
-    gql_type.fields.each do |field_name, v|
-      lines << "  property #{field_name} : #{case v
-      when Scalar then v
-      when NullableType then v[1].to_s.camelcase + (v[0] ? "?" : "")
-      when NullableArrayOfNullableType then "Array(" + v[2].to_s.camelcase + (v[1] ? "?" : "") + ")" + (v[0] ? "?" : "")
-      end
-      }"
+
+    gql_type.fields.each do |field_name, field_type|
+      lines << "  property #{field_name} : #{crystalize field_type}"
     end
 
     lines.each do |l|
@@ -194,15 +185,24 @@ def recursive_type_code(gql_type : GqlType, nesting_level = 0)
 
     (gql_type.fields.values.reject &.is_a? Scalar)
     .each do |field_type|
-      s << recursive_type_code(
-        case field_type
-        when NullableType                 then field_type[1]
-        when NullableArrayOfNullableType  then field_type[2]
-        end
-        .as(GqlType), nesting_level + 1
-      )
+      inner_gql_type = case field_type
+      when NullableType                 then field_type[1]
+      when NullableArrayOfNullableType  then field_type[2]
+      end
+      s << recursive_type_code(inner_gql_type.as(GqlType), nesting_level + 1)
     end
 
     s << "  " * nesting_level << "end\n"
+  end
+end
+
+# --------------------------------------------------------------------------
+
+def crystalize(v : GqlFieldType | GqlType)
+  case v
+  when GqlType then v.name.camelcase
+  when Scalar then v
+  when NullableType then v[1].to_s.camelcase + (v[0] ? "?" : "")
+  when NullableArrayOfNullableType then "Array(" + v[2].to_s.camelcase + (v[1] ? "?" : "") + ")" + (v[0] ? "?" : "")
   end
 end

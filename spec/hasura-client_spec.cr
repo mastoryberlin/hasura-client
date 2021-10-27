@@ -10,13 +10,9 @@ describe Hasura do
   end
 
   it "can query the stories in our DB via Hasura" do
-    # Hasura.query(GetStories)
-    Hasura::Schema.fancy_fun
-    # data, error = Hasura.query(GetStories)
-    # if data
-    #   stories = data.as_h["story"].as_a
-    #   (stories.map &.as_h["title"].as_s).should contain("The Cloud")
-    # end
+    Hasura.query(GetStories)
+    .story.map(&.title)
+    .should contain("The Cloud")
   end
 
   it "generates a type system that matches the GraphQL schema" do
