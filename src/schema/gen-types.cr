@@ -24,11 +24,17 @@ end
 response_types = [] of GqlType
 
 graphql = Path.new __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/schema\/?$/, "/graphql")
+STDERR.puts "__DIR__ points to #{__DIR__}"
+STDERR.puts "Generating types based on .gql files in path #{graphql}"
 graphql_dir = Dir.open graphql
 graphql_dir.each_child do |filename|
+  STDERR.puts "\n= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =" +
+    "\nParsing #{filename}" +
+    "\n= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = ="
   File.open graphql/filename do |user_defined_gql_operation|
     paren = 0
     brace = 0
+    directive = false
     field = ""
 
     # initialize iterator variables with dummies to satisfy the compiler
@@ -72,7 +78,7 @@ graphql_dir.each_child do |filename|
             end
 
           # 2) GET ITS FIELDS FROM THE SCHEMA
-          # puts "\nLooking up #{fields_root_name} in GQL schema / __schema / types"
+          STDERR.puts "\nLooking up #{fields_root_name} in GQL schema / __schema / types"
           fields_root = schema_types.find &.as_h["name"].as_s.==(fields_root_name)
           fields_in_schema = fields_root.not_nil!["fields"]
           fields_in_schema.as_a.each do |f|
@@ -117,15 +123,15 @@ graphql_dir.each_child do |filename|
             end
           end
 
-          # puts "-> allowed fields are: #{full_type.fields.map{|k,v| "#{k} (#{crystalize v})"}.join(", ")}"
           nest << { full_type, local_type, subfield }
+          STDERR.puts "-> allowed fields are: #{full_type.fields.map{|k,v| "#{k} (#{crystalize v})"}.join(", ")}"
           brace += 1
           field = "" # reset
         end
       when '}'
         if paren.zero?
           brace -= 1
-          # puts "======> Encountered } -> adding type #{local_type} to response_types"
+          STDERR.puts "======> Encountered } -> adding type #{local_type} to response_types"
           if brace.zero?
             response_types << local_type
           else
@@ -140,16 +146,20 @@ graphql_dir.each_child do |filename|
             end
           end
         end
+      when '@'
+        directive = true
       when '\n'
         field_name = field.strip
         if paren.zero? && !field_name.blank?
           field_type = full_type.fields[field_name]
           # puts "-----> Adding field #{field_name} (#{crystalize field_type}) to #{local_type}"
           local_type.fields[field_name] = field_type
-          field = "" # reset
+          # reset
+          field = ""
+          directive = false
         end
       else
-        field += c if paren.zero?
+        field += c if paren.zero? && !directive
       end
     end
   end
