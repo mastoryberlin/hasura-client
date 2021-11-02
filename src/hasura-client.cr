@@ -8,6 +8,18 @@ module Hasura
   extend self
 
   # ==========================================================================
+  # Nested classes
+  # ==========================================================================
+
+  class RequestError < Exception
+    getter operation_name, code, path, hasura_message
+
+    def initialize(@operation_name : String, @hasura_message : String, @code : String, @path : String)
+      super "Hasura reported an error with #{operation_name}: #{hasura_message} ('#{code}' at #{path})"
+    end
+  end
+
+  # ==========================================================================
   # Class properties
   # ==========================================================================
 
@@ -31,14 +43,17 @@ module Hasura
     {% filename = __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/?$/, "/graphql") + "/" + name.id.stringify + ".gql" %}
     {% raise "GraphQL file '#{name.id}.gql' not found in graphql folder (#{filename.id})" unless `[ -e "#{filename}" ]; echo -n $?` == "0" %}
 
-    Hasura.post_request({
+    response = Hasura.post_request({
       query: {{ read_file filename }},
       operationName: {{ name.id.stringify }},
       variables: { {{ **variables }} } {% if variables.empty? %}of String => String{% end %}
     }.to_json) do |raw|
       Hasura::Schema::{{ name.id }}Response.from_json raw.body_io
     end
-    .data || raise "Hasura responded with an error message" #TODO
+    response.data || begin
+      err = response.errors.not_nil!.first
+      raise Hasura::RequestError.new({{name.id.stringify}}, err.message, err.extensions.code, err.extensions.path)
+    end
   end
 
   # --------------------------------------------------------------------------

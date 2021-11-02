@@ -1,0 +1,5 @@
+query GetChannel($id: uuid!) {
+  channel_by_pk(id: $id) {
+    type
+  }
+}

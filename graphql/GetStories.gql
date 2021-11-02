@@ -2,5 +2,7 @@ query GetStories {
   story(order_by: {title: asc}) {
     title
     id
+    created_at
+    edit
   }
 }

@@ -1,0 +1,25 @@
+query GetEpisode($id: uuid!) {
+  story_chapter_by_pk(id: $id) {
+    title
+    number
+    sections {
+      title
+      number
+      prompts {
+        id
+        attachment
+        sender_id
+        text
+        type
+      }
+      meta
+    }
+    challenges {
+      geogebra_worksheets(order_by: {number: asc}) {
+        id
+        inputs
+        outputs
+      }
+    }
+  }
+}

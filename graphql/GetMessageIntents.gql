@@ -1,0 +1,14 @@
+query GetMessageIntents($since: timestamptz, $in_chatrooms: [uuid!] = null, $filter_by_chatrooms: Boolean = false) {
+  in_chatrooms: message(where: {created_at: {_gt: $since}, _and: {intent_classification: {_has_key: "selected_intent"}, _and: {channel_id: {_in: $in_chatrooms}}}}) @include(if: $filter_by_chatrooms) {
+    intent_id: intent_classification(path: "selected_intent.id")
+    intent_name: intent_classification(path: "selected_intent.name")
+    entities: intent_classification(path: "entities")
+    channel_id
+  }
+  in_all_chatrooms: message(where: {created_at: {_gt: $since}, _and: {intent_classification: {_has_key: "selected_intent"}}}) @skip(if: $filter_by_chatrooms) {
+    intent_id: intent_classification(path: "selected_intent.id")
+    intent_name: intent_classification(path: "selected_intent.name")
+    entities: intent_classification(path: "entities")
+    channel_id
+  }
+}

@@ -1,0 +1,5 @@
+query GetWorksheet($id: uuid!) {
+  geogebra_worksheet_by_pk(id: $id) {
+    number
+  }
+}

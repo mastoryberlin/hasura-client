@@ -23,8 +23,9 @@ end
 
 response_types = [] of GqlType
 
-graphql = Path.new __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/schema\/?$/, "/graphql")
 STDERR.puts "__DIR__ points to #{__DIR__}"
+graphql = Path.new __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/schema\/?$/, "/graphql")
+# graphql = Path.new "/home/felix/Mastory/c/c-the-cloud/graphql"
 STDERR.puts "Generating types based on .gql files in path #{graphql}"
 graphql_dir = Dir.open graphql
 graphql_dir.each_child do |filename|
@@ -41,8 +42,9 @@ graphql_dir.each_child do |filename|
     full_type = GqlType.new
     local_type = GqlType.new
     subfield = ""
+    local_alias = ""
 
-    nest = [] of {GqlType, GqlType, String} # a stack of info triples `{full_type, local_type, subfield}`
+    nest = [] of {GqlType, GqlType, String, String} # a stack of info triples `{full_type, local_type, subfield, local_alias}`
 
     user_defined_gql_operation
     .each_char do |c|
@@ -51,6 +53,7 @@ graphql_dir.each_child do |filename|
       when ')' then paren -= 1
       when '{'
         if paren.zero?
+          STDERR.puts "======> Encountered { -> starting new block"
           # entering new nesting level ->determine the type of the block, get its fields from the schema, store them in full_type,
           #                              then match every subsequently encountered field def against this full_type
           # 1) DETERMINE THE TYPE OF THE BLOCK
@@ -59,12 +62,18 @@ graphql_dir.each_child do |filename|
             if brace.zero?
               query_type, type_name = field.strip.split
               type_name = filename.sub(/\.g(?:raph)?ql$/, "") if type_name.blank?
-              full_type = GqlType.new type_name
-              local_type = GqlType.new type_name
-              subfield = ""
+              full_type.name = type_name
+              local_type.name = type_name
+              STDERR.puts "        top-level block - query_type=#{query_type}, type_name=#{type_name}"
               schema["#{query_type}Type"]["name"].as_s
             else
-              subfield = field.strip
+              has_alias = ':'.in? field
+              if has_alias
+              	local_alias, subfield = field.split(':').map &.strip
+              else
+              	subfield = field.strip
+              	local_alias = subfield
+              end
               field_type = full_type.fields[subfield] # here, full_type still refers to the OLD / parent / one nesting level above type
               type_name = case field_type
               when Scalar
@@ -73,12 +82,13 @@ graphql_dir.each_child do |filename|
               when NullableArrayOfNullableType  then field_type[2].name
               end.not_nil!
               full_type = GqlType.new type_name
-              local_type = GqlType.new type_name
+              local_type = GqlType.new local_alias
+              STDERR.puts "        nested block (level #{brace}) - subfield=#{subfield}, local_alias=#{local_alias}, type_name=#{type_name}"
               type_name
             end
 
           # 2) GET ITS FIELDS FROM THE SCHEMA
-          STDERR.puts "\nLooking up #{fields_root_name} in GQL schema / __schema / types"
+          STDERR.puts "        Looking up #{fields_root_name} in GQL schema / __schema / types"
           fields_root = schema_types.find &.as_h["name"].as_s.==(fields_root_name)
           fields_in_schema = fields_root.not_nil!["fields"]
           fields_in_schema.as_a.each do |f|
@@ -108,7 +118,7 @@ graphql_dir.each_child do |filename|
             when "SCALAR"
               base = case name.downcase
               when "boolean"          then "Bool"
-              when "float"            then "Float64"
+              # when "float"            then "Float64"
               when "smallint", "int"  then "Int32"
               when "string", "uuid"   then "String"
               when "timestamptz"      then "Time"
@@ -123,11 +133,13 @@ graphql_dir.each_child do |filename|
             end
           end
 
-          nest << { full_type, local_type, subfield }
-          STDERR.puts "-> allowed fields are: #{full_type.fields.map{|k,v| "#{k} (#{crystalize v})"}.join(", ")}"
+          STDERR.puts "        -> allowed fields are: #{full_type.fields.map{|k,v| "#{k} (#{crystalize v})"}.join(", ")}"
+          nest << { full_type, local_type, subfield, local_alias }
           brace += 1
-          field = "" # reset
-        end
+          # reset
+          field = ""
+          directive = false
+        end # if paren.zero?
       when '}'
         if paren.zero?
           brace -= 1
@@ -135,25 +147,33 @@ graphql_dir.each_child do |filename|
           if brace.zero?
             response_types << local_type
           else
-            inner_full_type, inner_local_type, inner_subfield = nest.pop
-            full_type, local_type, subfield = nest.last
-            # puts "        Popping nest - new full_type=#{full_type}, local_type=#{local_type}, subfield=#{subfield}"
+            inner_full_type, inner_local_type, inner_subfield, inner_alias = nest.pop
+            full_type, local_type, subfield, local_alias = nest.last
+            STDERR.puts "        Popping nest - new full_type=#{full_type}, local_type=#{local_type}, subfield=#{subfield}, local_alias=#{local_alias}"
             ref = full_type.fields[inner_subfield]
-            local_type.fields[inner_subfield] = case ref
+            field_type = case ref
             in Scalar                       then ref
             in NullableType                 then {ref[0], inner_local_type}
             in NullableArrayOfNullableType  then {ref[0], ref[1], inner_local_type}
             end
+            STDERR.puts "-----> Adding field #{inner_alias} (#{crystalize field_type}) to #{local_type}"
+            local_type.fields[inner_alias] = field_type
           end
         end
       when '@'
         directive = true
       when '\n'
-        field_name = field.strip
-        if paren.zero? && !field_name.blank?
-          field_type = full_type.fields[field_name]
-          # puts "-----> Adding field #{field_name} (#{crystalize field_type}) to #{local_type}"
-          local_type.fields[field_name] = field_type
+        if paren.zero? && !field.blank?
+          has_alias = ':'.in? field
+          if has_alias
+            alias_name, field_name = field.split(':').map &.strip
+          else
+            field_name = field.strip
+            alias_name = field_name
+          end
+          field_type = full_type.fields[field_name] # here, full_type still refers to the OLD / parent / one nesting level above type
+          STDERR.puts "-----> Adding field #{alias_name} (#{crystalize field_type}) to #{local_type}"
+          local_type.fields[alias_name] = field_type
           # reset
           field = ""
           directive = false
@@ -165,13 +185,27 @@ graphql_dir.each_child do |filename|
   end
 end
 
-STDOUT << "module Hasura::Schema" << '\n'
+STDOUT << <<-PREAMBLE
+module Hasura::Schema
+  class RequestError
+    include JSON::Serializable
+    class Extensions
+      include JSON::Serializable
+      property path : String
+      property code : String
+    end
+    property extensions : Extensions
+    property message : String
+  end
+PREAMBLE
+STDOUT << '\n'
 response_types.each do |gql_type|
   STDOUT << recursive_type_code(gql_type, 1) << '\n'
   lines = [] of String
   lines << "  class #{crystalize gql_type}Response"
   lines << "    include JSON::Serializable"
   lines << "    getter data : #{crystalize gql_type}?"
+  lines << "    getter errors : Array(::Hasura::Schema::RequestError)?"
   lines << "  end\n"
   lines.each{|l| STDOUT << l << '\n'}
 end
