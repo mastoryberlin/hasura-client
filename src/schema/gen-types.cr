@@ -6,11 +6,16 @@ schema = File.open __DIR__ + "/schema.json" do |schema_json|
 end["__schema"]
 schema_types = schema["types"].as_a
 
+# :nodoc:
 alias Scalar = String
+# :nodoc:
 alias NullableType = {Bool, GqlType}
+# :nodoc:
 alias NullableArrayOfNullableType = {Bool, Bool, GqlType}
+# :nodoc:
 alias GqlFieldType = Scalar | NullableType | NullableArrayOfNullableType
 
+# :nodoc:
 class GqlType
   property name
   property fields = {} of String => GqlFieldType
