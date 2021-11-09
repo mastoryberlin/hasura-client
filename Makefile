@@ -11,15 +11,11 @@ Test:
 Test_gen-types:
 	crystal run src/schema/gen-types.cr
 
-Deploy_DEV:
-	git checkout develop
+Retrieve_Graphql_schema:
+	gq https://prod-graphql-engine.mastory.io/v1/graphql -H "X-Hasura-Admin-Secret: $${HASURA_ADMIN_SECRET}" --introspect --format json > ${SRC}/schema/schema.json
+
+Deploy: Retrieve_Graphql_schema
 	sed -i shard.yml -E -e 's/^(version: [0-9]+\.[0-9]+\.)[0-9]+/\1'$$(( $$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+$$') + 1 ))/
 	git add shard.yml
 	git commit -m 'updated version number to '$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')
 	git push
-
-Deploy_PROD:
-	git checkout master
-	git merge develop
-	git push
-	git checkout develop
