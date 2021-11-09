@@ -16,7 +16,7 @@ Retrieve_Graphql_schema:
 	git add ${SRC}/schema/schema.json
 	git commit -m 'updated schema'
 
-Deploy: Retrieve_Graphql_schema
+Deploy:
 	sed -i shard.yml -E -e 's/^(version: [0-9]+\.[0-9]+\.)[0-9]+/\1'$$(( $$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+$$') + 1 ))/
 	git add shard.yml
 	git commit -m 'updated version number to '$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')

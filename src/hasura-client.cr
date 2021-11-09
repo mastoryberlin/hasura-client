@@ -39,27 +39,27 @@ module Hasura
 
   # --------------------------------------------------------------------------
 
-  macro query(name, **variables)
-    {% filename = __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/?$/, "/graphql") + "/" + name.id.stringify + ".gql" %}
-    {% raise "GraphQL file '#{name.id}.gql' not found in graphql folder (#{filename.id})" unless `[ -e "#{filename}" ]; echo -n $?` == "0" %}
+  macro query(gql_name, **variables)
+    {% filename = __DIR__.gsub(/(\/lib\/hasura-client)?\/src\/?$/, "/graphql") + "/" + gql_name.id.stringify + ".gql" %}
+    {% raise "GraphQL file '#{gql_name.id}.gql' not found in graphql folder (#{filename.id})" unless `[ -e "#{filename}" ]; echo -n $?` == "0" %}
 
     response = Hasura.post_request({
       query: {{ read_file filename }},
-      operationName: {{ name.id.stringify }},
+      operationName: {{ gql_name.id.stringify }},
       variables: { {{ **variables }} } {% if variables.empty? %}of String => String{% end %}
     }.to_json) do |raw|
-      Hasura::Schema::{{ name.id }}Response.from_json raw.body_io
+      Hasura::Schema::{{ gql_name.id }}Response.from_json raw.body_io
     end
     response.data || begin
       err = response.errors.not_nil!.first
-      raise Hasura::RequestError.new({{name.id.stringify}}, err.message, err.extensions.code, err.extensions.path)
+      raise Hasura::RequestError.new({{gql_name.id.stringify}}, err.message, err.extensions.code, err.extensions.path)
     end
   end
 
   # --------------------------------------------------------------------------
 
-  macro mutate(name, **variables)
-    Hasura.query {{ name }}{% if !variables.empty? %}, {{ **variables }}{% end %}
+  macro mutate(gql_name, **variables)
+    Hasura.query {{ gql_name }}{% if !variables.empty? %}, {{ **variables }}{% end %}
   end
 
   # ==========================================================================

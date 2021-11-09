@@ -29,7 +29,6 @@ describe Hasura do
     cls.should_not be_nil
     if cls
       cls.name.should eq "Alpha Testers Class"
-      cls.show_rover_app.should be_false
     end
   end
 
@@ -66,18 +65,16 @@ describe Hasura do
 
   # --------------------------------------------------------------------------
 
-  it "generates a type system that matches the GraphQL schema" do
-    #TODO: Make sure that a JSON response like this is parsed into the correct type:
-    # <<-JSON
-    # {
-    #   "insert_message_one": {
-    #   "id": "dbaa2172-0325-4b39-8ed1-4747710352ba",
-    #   "created_at": "2021-10-20T23:34:14.919422+00:00"
-    #   }
-    # }
-    # JSON
+  it "can create a new channel in our DB via Hasura", focus: true do
+    chatroom = Hasura.mutate(AddChatroom, name: "Test Channel X", type: "class", class_id: "252393c9-10e5-478a-b9f9-157f0bfb5fb7").insert_channel_one
+    chatroom.should_not be_nil
+    if chatroom
+      channel = Hasura.query(GetChannel, id: chatroom.id).channel_by_pk
+      channel.should_not be_nil
+      if channel
+        channel.name.should eq "Test Channel X"
+      end
+    end
   end
-
-  # --------------------------------------------------------------------------
 
 end

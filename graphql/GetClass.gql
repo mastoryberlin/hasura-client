@@ -2,6 +2,5 @@ query GetClass($id: uuid!) {
   class_by_pk(id: $id) {
     id
     name
-    show_rover_app
   }
 }

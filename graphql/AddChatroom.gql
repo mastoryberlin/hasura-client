@@ -1,0 +1,7 @@
+mutation AddChatroom($class_id: uuid!, $name: String! = "workaround", $type: channel_type_enum = class) {
+  insert_channel_one(object: {class_id: $class_id, name: $name, type: $type}) {
+    id
+    name
+    type
+  }
+}
