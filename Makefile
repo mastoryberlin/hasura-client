@@ -13,6 +13,8 @@ Test_gen-types:
 
 Retrieve_Graphql_schema:
 	gq https://prod-graphql-engine.mastory.io/v1/graphql -H "X-Hasura-Admin-Secret: $${HASURA_ADMIN_SECRET}" --introspect --format json > ${SRC}/schema/schema.json
+	git add ${SRC}/schema/schema.json
+	git commit -m 'updated schema'
 
 Deploy: Retrieve_Graphql_schema
 	sed -i shard.yml -E -e 's/^(version: [0-9]+\.[0-9]+\.)[0-9]+/\1'$$(( $$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+$$') + 1 ))/
