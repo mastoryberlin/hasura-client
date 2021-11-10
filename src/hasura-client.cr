@@ -32,7 +32,9 @@ module Hasura
   # ==========================================================================
 
   def connect(host, secret, endpoint = ENV["HASURA_ENDPOINT"]? || "/v1/graphql")
-    @@client = HTTP::Client.new host, 443, true
+    c = HTTP::Client.new host, 443, true
+    c.compress = false
+    @@client = c
     @@secret = secret
     @@endpoint = endpoint
   end
@@ -68,8 +70,9 @@ module Hasura
 
   def post_request(req, &block)
     client.post endpoint, HTTP::Headers{
-      "content-type" => "application/json",
-      "x-hasura-admin-secret" => secret
+      "Accept" => "application/json",
+      "Accept-Encoding" => "identity",
+      "X-Hasura-Admin-Secret" => secret
     }, req do |raw|
       yield raw
     end
