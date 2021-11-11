@@ -55,7 +55,7 @@ describe Hasura do
 
   # --------------------------------------------------------------------------
 
-  it "can query a channel in our DB via Hasura" do
+  it "can query a channel in our DB via Hasura", focus: true do
     channel = Hasura.query(GetChannel, id: "bec516e4-2056-471c-9e97-7ed8dafdda6c").channel_by_pk
     channel.should_not be_nil
     if channel
@@ -65,7 +65,7 @@ describe Hasura do
 
   # --------------------------------------------------------------------------
 
-  it "can create a new channel in our DB via Hasura", focus: true do
+  it "can create a new channel in our DB via Hasura" do
     chatroom = Hasura.mutate(AddChatroom, name: "Test Channel X", type: "class", class_id: "252393c9-10e5-478a-b9f9-157f0bfb5fb7").insert_channel_one
     chatroom.should_not be_nil
     if chatroom

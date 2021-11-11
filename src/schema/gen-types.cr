@@ -225,7 +225,8 @@ def recursive_type_code(gql_type : GqlType, nesting_level = 0)
     lines << "  include JSON::Serializable"
 
     gql_type.fields.each do |field_name, field_type|
-      lines << "  property #{field_name} : #{crystalize field_type}"
+      t = crystalize field_type
+      lines << "  property#{t.ends_with?("?") ? "" : "!"} #{field_name} : #{t}"
     end
 
     lines.each do |l|
@@ -249,9 +250,9 @@ end
 
 def crystalize(v : GqlFieldType | GqlType)
   case v
-  when GqlType then v.name.camelcase
-  when Scalar then v
-  when NullableType then v[1].to_s.camelcase + (v[0] ? "?" : "")
-  when NullableArrayOfNullableType then "Array(" + v[2].to_s.camelcase + (v[1] ? "?" : "") + ")" + (v[0] ? "?" : "")
+  in GqlType then v.name.camelcase
+  in Scalar then v
+  in NullableType then v[1].to_s.camelcase + (v[0] ? "?" : "")
+  in NullableArrayOfNullableType then "Array(" + v[2].to_s.camelcase + (v[1] ? "?" : "") + ")" + (v[0] ? "?" : "")
   end
 end
