@@ -21,5 +21,5 @@ Deploy:
 	git add shard.yml
 	git commit -m 'updated version number to '$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')
 	git tag v$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')
-	git push
-	curl -X POST -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/mastoryberlin/${REPO}/releases -d '{"tag_name":"'"v$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')"'"}'
+	git push --tags
+	curl -X POST -u feritarou:$${GITHUB_TOKEN} -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/mastoryberlin/${REPO}/releases -d '{"tag_name":"'"v$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')"'"}'
