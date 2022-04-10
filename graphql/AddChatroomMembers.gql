@@ -1,0 +1,5 @@
+mutation AddChatroomMembers($members: [channel_member_insert_input!] = {}) {
+  insert_channel_member(objects: $members) {
+    affected_rows
+  }
+}

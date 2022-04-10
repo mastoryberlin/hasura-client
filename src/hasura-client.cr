@@ -49,13 +49,13 @@ module Hasura
       query: {{ read_file filename }},
       operationName: {{ gql_name.id.stringify }},
       variables: { {{ **variables }} } {% if variables.empty? %}of String => String{% end %}
-    }.to_json) do |raw|
-      Hasura::Schema::{{ gql_name.id }}Response.from_json raw.body_io
-    end
-    response.data || begin
-      err = response.errors.not_nil!.first
+    }.to_json)
+    r = Hasura::Schema::{{ gql_name.id }}Response.from_json response.body
+    if errs = r.errors
+      err = errs.first
       raise Hasura::RequestError.new({{gql_name.id.stringify}}, err.message, err.extensions.code, err.extensions.path)
     end
+    r.data.not_nil!
   end
 
   # --------------------------------------------------------------------------
@@ -68,14 +68,12 @@ module Hasura
   # Helper methods
   # ==========================================================================
 
-  def post_request(req, &block)
+  def post_request(request)
     client.post endpoint, HTTP::Headers{
       "Accept" => "application/json",
       "Accept-Encoding" => "identity",
       "X-Hasura-Admin-Secret" => secret
-    }, req do |raw|
-      yield raw
-    end
+    }, request
   end
 
   # --------------------------------------------------------------------------

@@ -55,7 +55,7 @@ describe Hasura do
 
   # --------------------------------------------------------------------------
 
-  it "can query a channel in our DB via Hasura", focus: true do
+  it "can query a channel in our DB via Hasura" do
     channel = Hasura.query(GetChannel, id: "bec516e4-2056-471c-9e97-7ed8dafdda6c").channel_by_pk
     channel.should_not be_nil
     if channel
@@ -69,6 +69,26 @@ describe Hasura do
     chatroom = Hasura.mutate(AddChatroom, name: "Test Channel X", type: "class", class_id: "252393c9-10e5-478a-b9f9-157f0bfb5fb7").insert_channel_one
     chatroom.should_not be_nil
     if chatroom
+      channel = Hasura.query(GetChannel, id: chatroom.id).channel_by_pk
+      channel.should_not be_nil
+      if channel
+        channel.name.should eq "Test Channel X"
+      end
+    end
+  end
+
+  # --------------------------------------------------------------------------
+
+  it "can run several mutations in a chain, where the success of one is necessary for the next", focus: true do
+    chatroom = Hasura.mutate(AddChatroom, name: "Test Channel X", type: "class", class_id: "a2f511e2-7d3e-4ba3-9f17-4f726ac3850d").insert_channel_one
+    chatroom.should_not be_nil
+    if chatroom
+      members = [
+        {channel_id: chatroom.id, character_id: "New Nick"},
+        {channel_id: chatroom.id, character_id: "New VZ"},
+        {channel_id: chatroom.id, student_id: "359ada32-44e9-44bd-9c2a-3a7404cf7b27"},
+      ]
+      Hasura.mutate(AddChatroomMembers, members: members)
       channel = Hasura.query(GetChannel, id: chatroom.id).channel_by_pk
       channel.should_not be_nil
       if channel
