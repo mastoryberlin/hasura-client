@@ -20,4 +20,4 @@ Deploy:
 	sed -i shard.yml -E -e 's/^(version: [0-9]+\.[0-9]+\.)[0-9]+/\1'$$(( $$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+$$') + 1 ))/
 	git add shard.yml
 	git commit -m 'updated version number to '$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$')
-	TAG_NAME=v$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$') git tag $$TAG_NAME && git push && curl -X POST -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/mastoryberlin/${REPO}/releases -d '{"tag_name":"'"$$TAG_NAME"'"}'
+	export TAG_NAME=v$$(cat shard.yml | grep -P 'version: [0-9]+\.[0-9]+\.[0-9]+' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+$$') git tag $$TAG_NAME && git push && curl -X POST -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/mastoryberlin/${REPO}/releases -d '{"tag_name":"'"$$TAG_NAME"'"}'
