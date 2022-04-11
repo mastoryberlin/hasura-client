@@ -37,6 +37,7 @@ graphql_dir.each_child do |filename|
   STDERR.puts "\n= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =" +
     "\nParsing #{filename}" +
     "\n= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = ="
+  next if File.read(graphql/filename).lines.first === /#\s*hasura-ignore/
   File.open graphql/filename do |user_defined_gql_operation|
     paren = 0
     brace = 0
